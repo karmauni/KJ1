@@ -1,0 +1,38 @@
+
+node('ChefPipeline'){
+
+    stage('checkout') {
+        checkout scm
+    }
+
+    stage ('VROPS') {
+
+
+    }
+
+    stage('VRLI') {
+
+        echo "Getting the VRLI Token"     
+        def vrli1Token = sh (returnStdout: true, script: """
+            curl -S -i -k -X POST 'https://ipvc-vli-sl1.iprod-b2b.mte.westpac.com.au/api/v1/sessions' -H "Accept: application/json" -H "Content-Type: application/json" -d @request_vrli.json | grep sessionId | cut -d, -f2 | cut -d\\" -f4
+        """).split()
+
+        def vrli2Token = sh (returnStdout: true, script: """
+            curl -S -i -k -X POST 'https://ipvc-vli-sl2.iprod-b2b.mte.westpac.com.au/api/v1/sessions' -H "Accept: application/json" -H "Content-Type: application/json" -d @request_vrli.json | grep sessionId | cut -d, -f2 | cut -d\\" -f4
+        """).split()
+
+        echo "VRLI Token Site1 : ${vrli1Token[-1]}"
+        echo "VRLI Token Site2 : ${vrli2Token[-1]}"          
+        echo "Making VRLI calls using token..."       
+        sh """
+            curl -S -i -k -H "Content-Type: application/json" -H "Authorization: Bearer ${vrli1Token[-1]}" https://ipvc-vli-sl1.iprod-b2b.mte.westpac.com.au/api/v1/events?view=SIMPLE
+            curl -S -i -k -H 'Authorization: Bearer FVx0ZldGy7AAEyr+ZyEb0ekltj83IXK+dxq/qBX1Me0lptQ+dOr8HcZcxwSU+rFZk9pCW5zRSJ+loBwsiX1HByUMe3s4JEghOnkL8zosM7j3XVIVF9S0o14lQk/FKnCGVXeQBljFUrqxYS6vG85hsLOyg5uRwiez7Aya1qXfkws=' 'https://ipvc-vli-sl2.iprod-b2b.mte.westpac.com.au/api/v1/events?view=SIMPLE'
+            curl -S -i -k  -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer ${vrli1Token[-1]}" https://ipvc-vli-sl1.iprod-b2b.mte.westpac.com.au/api/v1/alerts?view=SIMPLE
+            curl -S -i -k  -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer ${vrli2Token[-1]}" https://ipvc-vli-sl2.iprod-b2b.mte.westpac.com.au/api/v1/events?view=SIMPLE 
+            curl -S -i -k  -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer ${vrli2Token[-1]}" https://ipvc-vli-sl2.iprod-b2b.mte.westpac.com.au/api/v1/events?view=DEFAULT
+            curl -S -i -k  -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer ${vrli2Token[-1]}" https://ipvc-vli-sl2.iprod-b2b.mte.westpac.com.au/api/v1/alerts?view=SIMPLE 
+        """
+        
+    }
+
+}
